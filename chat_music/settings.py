@@ -2,15 +2,13 @@ import os
 from pathlib import Path
 import dj_database_url  # Add this import at the top
 
-
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-pchba0_q0ic@feg5wd^_mhxs*nz*$*851@&-wb2@_9xz&7w(o6')
 
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['.onrender.com']
+ALLOWED_HOSTS = ['.onrender.com', 'soundwave-vo2c.onrender.com']
 
 INSTALLED_APPS = [
     'daphne',
@@ -24,10 +22,13 @@ INSTALLED_APPS = [
 
     'chat.apps.ChatConfig',
     'channels',
+    # 'corsheaders',  # Uncomment if you have django-cors-headers installed
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise for static file serving
+    # 'corsheaders.middleware.CorsMiddleware',  # Uncomment if you use django-cors-headers
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -37,7 +38,10 @@ MIDDLEWARE = [
 ]
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # <-- collectstatic dumps here on deploy
+STATICFILES_DIRS = [BASE_DIR / "static"]  # Source of your static assets
+STATIC_ROOT = BASE_DIR / "staticfiles"    # Where collectstatic dumps files
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 ROOT_URLCONF = 'chat_music.urls'
 
@@ -69,10 +73,9 @@ CHANNEL_LAYERS = {
 
 WSGI_APPLICATION = 'chat_music.wsgi.application'
 
-# DATABASES: Use dj-database-url to parse Render's Postgres URL or fallback to SQLite locally
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL')
+        default=f'sqlite:///{BASE_DIR}/db.sqlite3'
     )
 }
 
@@ -90,10 +93,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# STATICFILES for production
-STATICFILES_DIRS = [BASE_DIR / "static"]  # Your static assets source
-STATIC_ROOT = BASE_DIR / "staticfiles"    # Where collectstatic dumps files
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = '/login'
@@ -103,3 +102,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://localhost:8000"
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://soundwave-vo2c.onrender.com",
+    # add your custom domain here as well if you use one
+]
+
+# Optional: If you serve media files, add MEDIA settings (and use different MEDIA_ROOT than STATIC_ROOT)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / "mediafiles"
