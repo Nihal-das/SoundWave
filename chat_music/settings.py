@@ -38,7 +38,6 @@ MIDDLEWARE = [
 ]
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / "static"]  # Source of your static assets
 STATIC_ROOT = BASE_DIR / "staticfiles"    # Where collectstatic dumps files
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -66,7 +65,8 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [os.environ.get("REDIS_URL", "redis://localhost:6379")],
+            "hosts": [os.environ.get("REDIS_URL")],
+            "ssl_cert_reqs": None,
         },
     },
 }
