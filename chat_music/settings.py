@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 import dj_database_url  # Add this import at the top
 
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-pchba0_q0ic@feg5wd^_mhxs*nz*$*851@&-wb2@_9xz&7w(o6')
