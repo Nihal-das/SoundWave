@@ -97,6 +97,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login'
 
 CORS_ALLOWED_ORIGINS = [
+    "https://soundwave-vo2c.onrender.com",
     "http://127.0.0.1:8000",
     "http://localhost:8000"
 ]
