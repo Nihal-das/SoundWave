@@ -8,7 +8,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-pchba0_q0ic@feg5wd^
 
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'your-render-url.onrender.com').split(',')
+ALLOWED_HOSTS = ['.onrender.com']
 
 INSTALLED_APPS = [
     'daphne',
@@ -35,7 +35,7 @@ MIDDLEWARE = [
 ]
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # <-- collectstatic dumps here on deploy
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # <-- collectstatic dumps here on deploy
 
 ROOT_URLCONF = 'chat_music.urls'
 
@@ -60,7 +60,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(os.getenv('REDIS_HOST', '127.0.0.1'), int(os.getenv('REDIS_PORT', 6380)))],
+            "hosts": [os.environ.get("REDIS_URL", "redis://localhost:6379")],
         },
     },
 }
@@ -70,9 +70,7 @@ WSGI_APPLICATION = 'chat_music.wsgi.application'
 # DATABASES: Use dj-database-url to parse Render's Postgres URL or fallback to SQLite locally
 DATABASES = {
     'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-        ssl_require=True  # enforce SSL on production DB
+        default=os.environ.get('DATABASE_URL')
     )
 }
 
