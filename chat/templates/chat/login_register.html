@@ -1,0 +1,36 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="auth-container">
+    <div class="auth-card">
+        {% if page == 'login' %}
+            <h2>🔐 Login</h2>
+            <form method="POST">
+                {% csrf_token %}
+                <label for="username">📱 Mobile</label>
+                <input type="text" name="username" placeholder="Enter Mobile" required>
+
+                <label for="password">🔑 Password</label>
+                <input type="password" name="password" placeholder="Enter Password" required>
+
+                <input type="submit" value="Login" />
+            </form>
+            <p class="switch-text">Haven't signed up yet?</p>
+            <a class="switch-link" href="{% url 'register' %}">🚀 Sign Up</a>
+
+        {% else %}
+            <h2>📝 Register</h2>
+            <form method="POST">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <input type="submit" value="Register" />
+            </form>
+            <p class="switch-text">Already a user?</p>
+            <a class="switch-link" href="{% url 'login' %}">🔐 Login</a>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,441 @@
+{% extends 'main.html' %}
+
+{% block content %}
+
+
+{% include 'chat/navbar.html' %}
+<h1>Room: {{ room.name }}</h1>
+
+<div class="chat_room-container">
+    <div>
+        <h3>Host: {{ room.host.name }}</h3>
+        <p>Welcome, {{ request.user.name }}!</p>
+    </div>
+
+    <div>
+        <h3>Participants:</h3>
+        <ul class="participants-list">
+          {% for user in participants %}
+          {% if user.name == request.user.name %}
+          <li>You</li>
+            {% else %}
+            <li>{{ user.name }}</li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+    </div>
+
+    <div>
+        <a href="{% url 'home' %}"><button>← Go Back</button></a>
+        {% if room.host == request.user %}
+        <div style="margin-top: 8px;">
+            <a href="{% url 'manage_requests' room.id %}"><button>Manage Join Requests</button></a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="main-flex-container">
+    <div class="chat-section">
+<h2>Messages</h2>
+
+<div id="chat-messages" >
+  {% for message in room_messages %}
+    <div class="chat-message" id="msg-{{ message.id }}" 
+         data-user-id="{{ message.user.id }}"
+         data-msg-id="{{ message.id }}">
+         {% if message.user.name == request.user.name %}
+         <strong>You</strong>:
+         {% else %}
+        <strong>{{ message.user.name }}</strong>:
+            {% endif %}
+        <span class="message-text">{{ message.content }}</span>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Popup menu for edit/delete -->
+<div id="msg-popup">
+    <button id="popup-edit-btn">✏️ Edit</button>
+    <button id="popup-delete-btn" style="background-color: red;">🗑️ Delete</button>
+</div>
+
+<div style="display: flex; gap: 8px;">
+    <input type="text" id="messageInput" placeholder="Type a message..." style="flex: 1;" autocomplete="off"/>
+    <button id="sendBtn" onclick="sendMessage()">Send</button>
+</div>
+</div>
+
+
+<div class="youtube-container">
+    <div class="youtube-section">
+        <input type="text" id="music-search" placeholder="Search YouTube music..." />
+        <button id="searchBtn" onclick="searchYouTube()">🔍 Search</button>
+    </div>
+    <ul id="yt-results"></ul>
+    <div id="youtube-player"></div>
+    <p id="current-track-title"></p>
+</div>
+</div>
+
+<script>
+// ----- Chat Logic -----
+const roomName = "{{ room.name }}";
+const currentUserID = Number("{{ request.user.id }}");
+const isHost = String("{{ room.host.id }}") === String("{{ request.user.id }}");
+
+console.log("[Debug] Room name:", roomName, "Current user ID:", currentUserID, "Is host:", isHost);
+
+const chatSocket = new WebSocket(
+    (window.location.protocol === "https:" ? "wss://" : "ws://") +
+    window.location.host +
+    "/ws/room/" + encodeURIComponent(roomName) + "/"
+);
+
+const chatMessages = document.getElementById("chat-messages");
+const messageInput = document.getElementById("messageInput");
+
+chatSocket.onmessage = function (e) {
+    const data = JSON.parse(e.data);
+    console.log("[Debug] WebSocket message received:", data);
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    switch (data.action) {
+        case "send":
+            addMessage(data.message_id, data.user, data.message, data.user_id);
+            break;
+        case "edit":
+            updateMessage(data.message_id, data.message);
+            break;
+        case "delete":
+            removeMessage(data.message_id);
+            break;
+        case "music_control":
+            handleMusicControl(data.videoId, data.title);
+            break;
+        default:
+            console.log("[Debug] Unknown action:", data.action);
+    }
+};
+
+chatSocket.onopen = function () {
+    console.log("[Debug] WebSocket connected");
+};
+
+chatSocket.onerror = function (error) {
+    console.error("[Debug] WebSocket error:", error);
+};
+
+chatSocket.onclose = function () {
+    console.error("[Debug] Chat socket closed unexpectedly");
+};
+
+function sendMessage() {
+    const message = messageInput.value.trim();
+    if (message !== "") {
+        chatSocket.send(JSON.stringify({
+            action: "send",
+            message: message
+        }));
+        console.log("[Debug] Sent message:", message);
+        messageInput.value = '';
+    }
+}
+
+messageInput.addEventListener("keyup", function (event) {
+    if (event.key === "Enter") {
+        sendMessage();
+    }
+});
+
+function addMessage(id, username, content, userId) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "chat-message";
+    msgDiv.id = `msg-${id}`;
+
+    const isOwn = Number(userId) === Number(currentUserID);
+
+    const buttons = isOwn
+        ? `
+            <button onclick="editMessage('${id}')">✏️</button>
+            <button onclick="deleteMessage('${id}')">🗑️</button>
+        `
+        : "";
+
+    msgDiv.innerHTML = `
+        <strong>${username}</strong>: 
+        <span class="message-text">${content}</span>
+        ${buttons}
+    `;
+
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    console.log("[Debug] Message added to chat:", id, username, content, userId);
+}
+
+function updateMessage(id, newContent) {
+    const msgEl = document.getElementById(`msg-${id}`);
+    if (msgEl) {
+        msgEl.querySelector(".message-text").innerText = newContent;
+        console.log("[Debug] Message updated:", id, newContent);
+    }
+}
+
+function removeMessage(id) {
+    const msgEl = document.getElementById(`msg-${id}`);
+    if (msgEl) {
+        msgEl.remove();
+        console.log("[Debug] Message removed:", id);
+    }
+}
+
+function editMessage(id) {
+    const msgEl = document.getElementById(`msg-${id}`);
+    const current = msgEl.querySelector(".message-text").innerText;
+    const newContent = prompt("Edit your message:", current);
+
+    if (newContent !== null && newContent.trim() !== "") {
+        chatSocket.send(JSON.stringify({
+            action: "edit",
+            message_id: id,
+            new_content: newContent.trim()
+        }));
+        console.log("[Debug] Sent edit message:", id, newContent.trim());
+    }
+}
+
+function deleteMessage(id) {
+    if (confirm("Delete this message?")) {
+        chatSocket.send(JSON.stringify({
+            action: "delete",
+            message_id: id
+        }));
+        console.log("[Debug] Sent delete message:", id);
+    }
+}
+
+// ----- YouTube Search and Play Logic -----
+const musicSearch = document.getElementById("music-search");
+const ytResultsElem = document.getElementById("yt-results");
+const currentTrackTitle = document.getElementById("current-track-title");
+const ytPlayerElem = document.getElementById("youtube-player");
+
+// Use your YouTube Data API v3 Key here (do not expose in production)
+const YT_API_KEY = "AIzaSyAHApN4UtlsQ8VexAMFafie3bE0mqIWyKk"; // <--- REPLACE THIS!!!
+
+let currentVideoId = null;
+let videoResults = [];
+
+function renderYouTubeResults() {
+    ytResultsElem.innerHTML = "";
+    if (videoResults.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "No videos found. Try another search.";
+        li.classList.add("disabled");
+        ytResultsElem.appendChild(li);
+        return;
+    }
+    videoResults.forEach((video, idx) => {
+        const li = document.createElement("li");
+        const thumb = document.createElement("img");
+        thumb.src = video.thumbnail;
+        thumb.alt = "";
+        thumb.width = 40;
+        thumb.height = 40;
+        li.appendChild(thumb);
+        const t = document.createElement("span");
+        t.textContent = video.title;
+        li.appendChild(t);
+
+        if (isHost) {
+            li.onclick = () => playYouTubeVideo(idx);
+        } else {
+            li.classList.add("disabled");
+            li.title = "Only the host can play music";
+        }
+        ytResultsElem.appendChild(li);
+    });
+    console.log("[Debug] Rendered YouTube search results:", videoResults);
+}
+
+async function searchYouTube() {
+    const query = musicSearch.value.trim();
+    if (!query) {
+        alert("Type a search term for music!");
+        return;
+    }
+    if (YT_API_KEY === "YOUR_YOUTUBE_API_KEY") {
+        alert("Please set your YouTube Data API key in the code!");
+        return;
+    }
+    ytResultsElem.innerHTML = "<li>Searching...</li>";
+    try {
+        // Add videoEmbeddable=true to the API call!
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&type=video&videoEmbeddable=true&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`;
+        console.log("[Debug] Fetching YouTube search:", url);
+        const resp = await fetch(url);
+        const data = await resp.json();
+        console.log("[Debug] YouTube API response:", data);
+        if (data.items && data.items.length > 0) {
+            videoResults = data.items.map(item => ({
+                videoId: item.id.videoId,
+                title: item.snippet.title,
+                thumbnail: item.snippet.thumbnails.default.url
+            }));
+        } else {
+            videoResults = [];
+        }
+        renderYouTubeResults();
+    } catch (e) {
+        ytResultsElem.innerHTML = "<li>Error searching YouTube.</li>";
+        console.error("[Debug] YouTube search error:", e);
+    }
+}
+
+function playYouTubeVideo(idx) {
+    console.log("[Debug] playYouTubeVideo called with idx:", idx);
+    const video = videoResults[idx];
+    if (!video) {
+        console.log("[Debug] No video found at idx:", idx);
+        return;
+    }
+    currentVideoId = video.videoId;
+    console.log("[Debug] About to sendMusicControl for video:", video);
+    sendMusicControl(video.videoId, video.title);
+    highlightSelectedTrack(idx);
+}
+
+function highlightSelectedTrack(idx) {
+    Array.from(ytResultsElem.children).forEach((li, i) => {
+        li.style.background = (i === idx) ? "#d5eaff" : "";
+        li.style.fontWeight = (i === idx) ? "bold" : "";
+    });
+    console.log("[Debug] Highlighted track at idx:", idx);
+}
+
+// Send music control command to all users
+function sendMusicControl(videoId, title) {
+    console.log("[Debug] Sending music control:", videoId, title);
+    chatSocket.send(JSON.stringify({
+        action: "music_control",
+        videoId: videoId,
+        title: title
+    }));
+}
+
+// Receive and handle music control
+function handleMusicControl(videoId, title) {
+    console.log("[Debug] handleMusicControl called with:", videoId, title);
+    if (videoId) {
+        currentTrackTitle.innerText = "Now playing: " + (title || "");
+        loadYouTubePlayer(videoId);
+        // Highlight in result list if present
+        const idx = videoResults.findIndex(v => v.videoId === videoId);
+        highlightSelectedTrack(idx);
+    }
+}
+
+function loadYouTubePlayer(videoId) {
+    console.log("[Debug] loadYouTubePlayer called with videoId:", videoId);
+    ytPlayerElem.innerHTML = `
+        <iframe width="225" height="225"
+            src="https://www.youtube.com/embed/${videoId}?autoplay=1"
+            frameborder="0"
+            allow="autoplay; encrypted-media"
+            allowfullscreen>
+        </iframe>
+    `;
+}
+
+
+const chatMessages1 = document.getElementById("chat-messages");
+const popup = document.getElementById("msg-popup");
+const popupEditBtn = document.getElementById("popup-edit-btn");
+const popupDeleteBtn = document.getElementById("popup-delete-btn");
+
+let popupTargetMsgId = null;
+
+// Show popup near clicked message if it belongs to current user
+chatMessages1.addEventListener("click", (e) => {
+    let targetDiv = e.target;
+
+    // Traverse up until .chat-message or stop at chatMessages container
+    while (targetDiv && !targetDiv.classList.contains("chat-message") && targetDiv !== chatMessages1) {
+        targetDiv = targetDiv.parentElement;
+    }
+
+    if (targetDiv && targetDiv.classList.contains("chat-message")) {
+        const userId = Number(targetDiv.getAttribute("data-user-id"));
+        const msgId = targetDiv.getAttribute("data-msg-id");
+
+        if (userId === currentUserID) {
+            // Show popup
+            popupTargetMsgId = msgId;
+
+            // Position popup near clicked message (bottom-left)
+            const rect = targetDiv.getBoundingClientRect();
+            const containerRect = chatMessages1.getBoundingClientRect();
+
+            popup.style.top = (rect.bottom - containerRect.top + chatMessages1.scrollTop + 5) + "px";
+            popup.style.left = (rect.left - containerRect.left) + "px";
+            popup.style.display = "block";
+        } else {
+            hidePopup();
+        }
+    } else {
+        hidePopup();
+    }
+});
+
+// Hide popup on click outside popup or message area
+document.addEventListener("click", (e) => {
+    if (!popup.contains(e.target) && !chatMessages1.contains(e.target)) {
+        hidePopup();
+    }
+});
+
+function hidePopup() {
+    popup.style.display = "none";
+    popupTargetMsgId = null;
+}
+
+// Popup edit button click
+popupEditBtn.addEventListener("click", () => {
+    if (!popupTargetMsgId) return;
+
+    const msgEl = document.getElementById(`msg-${popupTargetMsgId}`);
+    const current = msgEl.querySelector(".message-text").innerText;
+    const newContent = prompt("Edit your message:", current);
+
+    if (newContent !== null && newContent.trim() !== "") {
+        chatSocket.send(JSON.stringify({
+            action: "edit",
+            message_id: popupTargetMsgId,
+            new_content: newContent.trim()
+        }));
+        console.log("[Debug] Sent edit message:", popupTargetMsgId, newContent.trim());
+    }
+    hidePopup();
+});
+
+// Popup delete button click
+popupDeleteBtn.addEventListener("click", () => {
+    if (!popupTargetMsgId) return;
+
+    if (confirm("Delete this message?")) {
+        chatSocket.send(JSON.stringify({
+            action: "delete",
+            message_id: popupTargetMsgId
+        }));
+        console.log("[Debug] Sent delete message:", popupTargetMsgId);
+    }
+    hidePopup();
+});
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'main.html' %}
+
+{% block content %}
+
+{% include 'chat/navbar.html' %}
+
+<div class="create-room-container">
+    <h2>💬 Create a Chat Room</h2>
+
+    <form method="POST" class="create-room-form">
+        {% csrf_token %}
+        <label for="room_name">Room Name:</label>
+        <input type="text" name="room_name" placeholder="Enter room name" required>
+        <button type="submit">Create Room</button>
+    </form>
+
+    <a href="{% url 'home' %}" class="back-link">← Back to Room List</a>
+</div>
+
+{% endblock %}

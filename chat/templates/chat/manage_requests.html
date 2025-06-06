@@ -1,0 +1,23 @@
+{% extends 'main.html' %}
+
+{% block content %}
+
+{% include 'chat/navbar.html' %}
+
+<h2>Pending Join Requests for {{ room.name }}</h2>
+
+{% if pending_requests %}
+    <ul>
+        {% for req in pending_requests %}
+            <li>
+                {{ req.user.name }} - 
+                <a href="{% url 'handle_request_action' req.id 'accept' %}">Accept</a> | 
+                <a href="{% url 'handle_request_action' req.id 'deny' %}">Deny</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No pending requests.</p>
+{% endif %}
+
+{% endblock content %}

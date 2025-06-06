@@ -1,0 +1,20 @@
+{% block content %}
+
+<nav class="navbar">
+    <div class="nav-left">
+        <h1><a href="{% url 'home' %}">💬 SoundWave</a></h1>
+        <sup>follow @_nihal_das_</sup>
+    </div>
+    <div class="nav-right">
+        {% if request.user.is_authenticated %}
+            <span>Hello, <strong>{{ request.user.name }}</strong></span>
+            <a style="text-decoration: none;" href="{% url 'logout' %}">Logout</a>
+        {% else %}
+            <a style="text-decoration: none;" href="{% url 'login' %}">Login</a>
+        {% endif %}
+    </div>
+</nav>
+
+<hr class="nav-divider">
+
+{% endblock %}

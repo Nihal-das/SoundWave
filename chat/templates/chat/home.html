@@ -1,0 +1,58 @@
+{% extends 'main.html' %}
+{% load static %} 
+
+
+{% block content %}
+
+
+
+
+{% include 'chat/navbar.html' %}
+
+<div class="home-container">
+    <div class="create-room">
+        <a href="{% url 'create_room' %}"><button style="background-color: rgb(79, 191, 229); ">➕ Create Your Own Room</button></a>
+        
+    </div>
+
+    <div>
+        <h2>🟢 Your Hosted Rooms</h2>
+        {% for room in rooms %}
+            {% if room.host == request.user %}
+                <div class="room-box">
+                    <strong>{{ room.name|title }}</strong><br>
+                    Host: You<br>
+                    <a href="{% url 'enter_room' room.id %}"><button>Enter Room</button></a>
+                    <a href="{% url 'delete_room' room.id %}" onclick="return confirm('Are you sure you want to delete this room?');"><button style="background-color: red;">🗑 Delete </button></a>
+                </div>
+            {% endif %}
+        {% empty %}
+            <p>You haven’t created any rooms yet.</p>
+        {% endfor %}
+    </div>
+
+    <div>
+        <h2>🌐 Join Other Rooms</h2>
+        {% for room in rooms %}
+            {% if room.host != request.user %}
+                <div class="room-box">
+                    <strong>{{ room.name|title }}</strong><br>
+                    Host: {{ room.host.name }}<br>
+
+                    {% if room.id in user_joined_rooms %}
+                        <a href="{% url 'enter_room' room.id %}">Enter Room</a>
+                    {% else %}
+                        <form action="{% url 'request_to_join' room.id %}" method="POST" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit">Request to Join</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% empty %}
+            <p>No other rooms available.</p>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}
