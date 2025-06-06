@@ -3,10 +3,20 @@ services:
     name: soundwave
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
     startCommand: daphne -b 0.0.0.0 -p $PORT chat_music.asgi:application
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
-      - key: DEBUG
+      - key: DJANGO_DEBUG
         value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: soundwave.onrender.com  # replace with your actual render url
+      - key: DATABASE_URL
+        value: postgresql://chat_music_db_user:Q9KwACWhYhxLyKYmS6zLg639b6Fjn5RA@dpg-d118qdh5pdvs73enl4og-a/chat_music_db  # replace with your postgres url
+      - key: REDIS_HOST
+        value: 127.0.0.1  # or your Redis host
+      - key: REDIS_PORT
+        value: "6380"     # or your Redis port
